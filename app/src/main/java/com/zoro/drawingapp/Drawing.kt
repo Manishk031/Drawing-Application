@@ -20,13 +20,16 @@ class Drawing (context: Context, attrs:AttributeSet): View(context,attrs){
     private var mBrushSize:Float = 0.toFloat()
     private var color =Color.BLACK
     private var canvas:Canvas? = null
-    private val mPath =ArrayList<CustomPath>()
+    private val mPaths =ArrayList<CustomPath>() // ARRAYLIST FOR PATHS
+    private val mUndoPaths = ArrayList<CustomPath>()
+
 
 
 
     init{
         setUpDrawing()
     }
+
 
 
 
@@ -52,7 +55,7 @@ class Drawing (context: Context, attrs:AttributeSet): View(context,attrs){
         super.onDraw(canvas)
          canvas.drawBitmap(mCanvasBitmap!!,0f,0f,mCanvasPaint)
 
-                  for(path in mPath)
+                  for(path in mPaths)
                   {
                       mDrawPaint!!.strokeWidth = path.brushThickness
                       mDrawPaint!!.color = path.color
@@ -96,7 +99,7 @@ class Drawing (context: Context, attrs:AttributeSet): View(context,attrs){
             }
 
             MotionEvent.ACTION_UP ->{
-                mPath.add(mDrawPath!!)
+                mPaths.add(mDrawPath!!)
                 mDrawPath = CustomPath(color,mBrushSize)
             }
             else -> return false
@@ -116,6 +119,15 @@ class Drawing (context: Context, attrs:AttributeSet): View(context,attrs){
     fun setColor(newColor: String){
         color = Color.parseColor(newColor)
     }
+    fun onClickUndo() {
+        if (mPaths.size > 0) {
+
+            mUndoPaths.add(mPaths.removeAt(mPaths.size - 1))
+            invalidate() // Invalidate the whole view. If the view is visible
+        }
+    }
+
+
 
     //An inner class  from  path with two params as color and stroke size.
     internal inner class CustomPath(var color: Int, var brushThickness:Float): Path() {

@@ -3,6 +3,7 @@ package com.zoro.drawingapp
 import android.Manifest
 import android.app.Dialog
 import android.content.Intent
+import android.media.Image
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
@@ -84,6 +85,13 @@ class MainActivity : AppCompatActivity() {
         ibGallery.setOnClickListener{
             requestStoragePermission()
         }
+
+        val ibUndo: ImageButton = findViewById(R.id.ib_undo)
+        ibUndo.setOnClickListener {
+            // This is for undo recent stroke.
+            drawingView?.onClickUndo()
+        }
+
 
             }
        private   fun showBrushSizeChooserDialog()
