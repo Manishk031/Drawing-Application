@@ -48,7 +48,9 @@ class MainActivity : AppCompatActivity() {
                 imageBackground.setImageURI(result.data?.data)
             }
         }
-
+    /** create an ActivityResultLauncher with MultiplePermissions since we are requesting
+     * both read and write
+     */
 
     val requestPermission: ActivityResultLauncher<Array<String>> =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){
@@ -165,14 +167,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isReadStorageAllowed(): Boolean {
+        //Getting the permission status
+        // Here the checkSelfPermission is
+        /*
+         * Determine whether <em>you</em> have been granted a particular permission.
+         *
+         * @param permission The name of the permission being checked.
+         *
+         */
         val result = ContextCompat.checkSelfPermission(
             this, Manifest.permission.READ_EXTERNAL_STORAGE)
+        /*
+         *
+         * @return {@link android.content.pm.PackageManager#PERMISSION_GRANTED} if you have the
+         * permission, or {@link android.content.pm.PackageManager#PERMISSION_DENIED} if not.
+         *
+         */
+        //If permission is granted returning true and If permission is not granted returning false
         return result == PackageManager.PERMISSION_GRANTED
     }
 
 
   //create a method to requestStorage permission
     private fun requestStoragePermission(){
+      // Check if the permission was denied and show rationale
 
         if (
             ActivityCompat.shouldShowRequestPermissionRationale(
@@ -246,11 +264,29 @@ class MainActivity : AppCompatActivity() {
         withContext(Dispatchers.IO) {
             if (mBitmap != null) {
 
+
                 try {
                     val bytes = ByteArrayOutputStream() // Creates a new byte array output stream.
                     // The buffer capacity is initially 32 bytes, though its size increases if necessary.
 
                     mBitmap.compress(Bitmap.CompressFormat.PNG, 90, bytes)
+                    /*
+                 * Write a compressed version of the bitmap to the specified outputstream.
+                 * If this returns true, the bitmap can be reconstructed by passing a
+                 * corresponding inputstream to BitmapFactory.decodeStream(). Note: not
+                 * all Formats support all bitmap configs directly, so it is possible that
+                 * the returned bitmap from BitmapFactory could be in a different bitdepth,
+                 * and/or may have lost per-pixel alpha (e.g. JPEG only supports opaque
+                 * pixels).
+                 *
+                 * @param format   The format of the compressed image
+                 * @param quality  Hint to the compressor, 0-100. 0 meaning compress for
+                 *                 small size, 100 meaning compress for max quality. Some
+                 *                 formats, like PNG which is lossless, will ignore the
+                 *                 quality setting
+                 * @param stream   The outputstream to write the compressed data.
+                 * @return true if successfully compressed to the specified stream.
+                 */
 
 
 
@@ -312,6 +348,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
     private  fun shareImage(result:String){
+        /*MediaScannerConnection provides a way for applications to pass a
+        newly created or downloaded media file to the media scanner service.
+        The media scanner service will read metadata from the file and add
+        the file to the media content provider.
+        The MediaScannerConnectionClient provides an interface for the
+        media scanner service to return the Uri for a newly scanned file
+        to the client of the MediaScannerConnection class.*/
         MediaScannerConnection.scanFile(this@MainActivity, arrayOf(result), null )
         { path, uri ->
             // This is used for sharing the image after it has being stored in the storage.
