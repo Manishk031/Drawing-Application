@@ -3,13 +3,19 @@ package com.zoro.drawingapp
 import android.Manifest
 import android.app.Dialog
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.media.Image
+import android.media.MediaScannerConnection
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
 import android.service.voice.VoiceInteractionSession.ActivityId
 import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -21,10 +27,18 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.get
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
     private  var drawingView : Drawing? = null
     private  var  mImageButtonCurrentPaint:ImageButton? = null
+    var customProgressDialog: Dialog? = null
 
 
     val openGalleryLauncher:ActivityResultLauncher<Intent> =
@@ -92,6 +106,19 @@ class MainActivity : AppCompatActivity() {
             drawingView?.onClickUndo()
         }
 
+        val ibSave : ImageButton = findViewById(R.id.ib_save)
+        ibSave.setOnClickListener{
+
+            if(isReadStorageAllowed()){
+                showProgressDialog()
+                lifecycleScope.launch {
+                    val flDrawingView: FrameLayout = findViewById(R.id.fl_drawing_view_container)
+                     // val  myBitmap:Bitmap = getBitmapFromView(flDrawingView)
+                    saveBitmapFile(getBitmapFromView(flDrawingView))
+                }
+            }
+        }
+
 
             }
        private   fun showBrushSizeChooserDialog()
@@ -136,6 +163,15 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+
+    private fun isReadStorageAllowed(): Boolean {
+        val result = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.READ_EXTERNAL_STORAGE)
+        return result == PackageManager.PERMISSION_GRANTED
+    }
+
+
+  //create a method to requestStorage permission
     private fun requestStoragePermission(){
 
         if (
@@ -159,6 +195,10 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+    /**  create rationale dialog
+     * Shows rationale dialog for displaying why the app needs permission
+     * Only shown if the user has denied the permission request previously
+     */
     private fun showRationaleDialog(
         title: String,
         message: String,
@@ -171,4 +211,118 @@ class MainActivity : AppCompatActivity() {
             }
         builder.create().show()
     }
+    // TODO(Step 4 : Getting and bitmap Exporting the image to your phone storage.)
+    /**
+     * Create bitmap from view and returns it
+     */
+    private fun getBitmapFromView(view: View): Bitmap {
+
+
+        val returnedBitmap = Bitmap.createBitmap(view.width, view.height,
+            Bitmap.Config.ARGB_8888)
+
+        val canvas = Canvas(returnedBitmap)
+
+        val bgDrawable = view.background
+        if (bgDrawable != null) {
+
+            bgDrawable.draw(canvas)
+        } else {
+
+            canvas.drawColor(Color.WHITE)
+        }
+
+        view.draw(canvas)
+
+        return returnedBitmap
+    }
+
+
+
+
+    // TODO(Step 2 : A method to save the image.)
+    private suspend fun saveBitmapFile(mBitmap: Bitmap?):String{
+        var result = ""
+        withContext(Dispatchers.IO) {
+            if (mBitmap != null) {
+
+                try {
+                    val bytes = ByteArrayOutputStream() // Creates a new byte array output stream.
+                    // The buffer capacity is initially 32 bytes, though its size increases if necessary.
+
+                    mBitmap.compress(Bitmap.CompressFormat.PNG, 90, bytes)
+
+
+
+                    val f = File(
+                        externalCacheDir?.absoluteFile.toString()
+                                + File.separator + "DrawingApp_" + System.currentTimeMillis() / 1000 + ".png"
+                    )
+                    // Here the Environment : Provides access to environment variables.
+                    // getExternalStorageDirectory : returns the primary shared/external storage directory.
+                    // absoluteFile : Returns the absolute form of this abstract pathname.
+                    // File.separator : The system-dependent default name-separator character. This string contains a single character.
+
+                    val fo = FileOutputStream(f) // Creates a file output stream to write to the file represented by the specified object.
+
+                    fo.write(bytes.toByteArray()) // Writes bytes from the specified byte array to this file output stream.
+
+                    fo.close() // Closes this file output stream and releases any system resources associated with this stream. This file output stream may no longer be used for writing bytes.
+                    result = f.absolutePath // The file absolute path is return as a result.
+                    //We switch from io to ui thread to show a toast
+                    runOnUiThread {
+                        cancelProgressDialog()
+                        if (result.isNotEmpty()) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "File saved successfully :$result",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            shareImage(result)
+                        } else {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Something went wrong while saving the file.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    result = ""
+                    e.printStackTrace()
+                }
+            }
+        }
+        return result
+    }
+    private fun showProgressDialog() {
+        customProgressDialog = Dialog(this@MainActivity)
+
+        /*Set the screen content from a layout resource.
+        The resource will be inflated, adding all top-level views to the screen.*/
+        customProgressDialog?.setContentView(R.layout.dialog_custom_progress)
+
+        //Start the dialog and display it on screen.
+        customProgressDialog?.show()
+    }
+    private fun cancelProgressDialog() {
+        if (customProgressDialog != null) {
+            customProgressDialog?.dismiss()
+            customProgressDialog = null
+        }
+    }
+    private  fun shareImage(result:String){
+        MediaScannerConnection.scanFile(this@MainActivity, arrayOf(result), null )
+        { path, uri ->
+            // This is used for sharing the image after it has being stored in the storage.
+            val shareIntent = Intent()
+            shareIntent.action = Intent.ACTION_SEND
+            shareIntent.putExtra(Intent.EXTRA_STREAM,uri)
+            // A content: URI holding a stream of data associated with the Intent, used to supply the data being sent.
+            shareIntent.type ="image/png" // The MIME type of the data being handled by this intent.
+            startActivity(Intent.createChooser(shareIntent,"Share"))
+        }
+    }
+
+
 }
